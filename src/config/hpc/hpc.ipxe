@@ -21,6 +21,7 @@ ifclose
 set vidx:int8 0
 :dhcpcheck isset ${net${vidx}/mac} || goto configured
   ifopen net${vidx} || echo Failed to open net${vidx}
+  set boot-nic net${vidx} # constantly set this, once DHCP works this'll refer to the right NIC.
   ifconf -c dhcp --timeout 20000 net${vidx} && goto configured || ifclose net${vidx}
   inc vidx && goto dhcpcheck
 :configured
