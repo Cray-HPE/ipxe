@@ -1,10 +1,7 @@
-/*
- * Console configuration suitable for use in public cloud
- * environments, or any environment where direct console access is not
- * available.
- *
- */
-
+#undef PRODUCT_NAME
+#define PRODUCT_NAME "HPC Metal iPXE"
+#undef PRODUCT_URI
+#define PRODUCT_URI "https://github.com/Cray-HPE/ipxe"
 
 /* Enable VLAN command: https://ipxe.org/buildcfg/vlan_cmd */
 #define VLAN_CMD
