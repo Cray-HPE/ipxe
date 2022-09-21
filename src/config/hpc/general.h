@@ -34,13 +34,17 @@ usage: Used for triaging TCP/IP routing and general connectivity.
 */
 #define PING_CMD
 
-// Iterate through unplugged links faster
-#ifdef LINK_WAIT_TIMEOUT
-#undef LINK_WAIT_TIMEOUT
-#define LINK_WAIT_TIMEOUT ( 5 * TICKS_PER_SEC )
+/* DHCP config */
+#ifdef DHCP_DISC_START_TIMEOUT_SEC
+#undef DHCP_DISC_START_TIMEOUT_SEC
 #endif
+#define DHCP_DISC_START_TIMEOUT_SEC	    4
+#ifdef DHCP_DISC_END_TIMEOUT_SEC
+#undef DHCP_DISC_END_TIMEOUT_SEC
+#endif
+#define DHCP_DISC_END_TIMEOUT_SEC	    32
 
-/* No LACP please */
+/* No LACP */
 #ifdef NET_PROTO_LACP
 #undef NET_PROTO_LACP
 #endif
