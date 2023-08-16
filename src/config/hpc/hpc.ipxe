@@ -1,4 +1,7 @@
 #!ipxe
+
+set print-nics:int8 0
+:nics
 echo === NIC DISCOVERY ==================================
 # Must start at 0; uint does not start at 0.
 set idx:int8 0
@@ -6,6 +9,7 @@ set idx:int8 0
   echo net${idx} MAC ${net${idx}/mac} PCI.DeviceID ${pci/${net${idx}/busloc}.2.2} PCI.VendorID ${pci/${net${idx}/busloc}.0.2}
   inc idx && goto check
 :checked
+iseq ${print-nics} 1 && prompt Press any key to continue && goto menu || goto menu
 
 echo === LINK ===========================================
 set vidx:int8 0
@@ -14,32 +18,13 @@ set vidx:int8 0
   inc vidx && goto linkcheck
 :opened
 
-echo === DHCP ===========================================
-# Shut down all interfaces and open them as needed. Sternly prevents iPXE from
-# making bad decisions selecting which interface traffic egresses.
-ifclose
-set vidx:int8 0
-:dhcpcheck isset ${net${vidx}/mac} || goto configured
-  ifopen net${vidx} || echo Failed to open net${vidx}
-  set boot-nic net${vidx} # constantly set this, once DHCP works this'll refer to the right NIC.
-  ifconf -c dhcp --timeout 20000 net${vidx} && goto configured || ifclose net${vidx}
-  inc vidx && goto dhcpcheck
-:configured
-echo Dumping interface status:
-isset ${net${vidx}/ip} && show net${vidx}/ip || echo No interfaces were configured
-ifstat
-
+:menu
 echo === Loading Menu ... ===============================
 # This should be coded to always point to our LiveCD alias and nothing else.
 # Figure out if client is 64-bit capable
 colour --basic 0 4
 cpair --background 4 0
 set menu-timeout 2000
-# Assume the DNS server is the same server PXE booting us.
-set server-ip ${dhcp-server}
-set script-url http://${dhcp-server}
-# If the hostname is set in the DHCPOFFER use that for a personalized script.
-isset ${hostname} && set script-url ${script-url}/${hostname}/script.ipxe || set script-url ${script-url}/boot/script.ipxe
 
 # Get cpu architecture
 iseq ${buildarch} arm64 && goto arm64 ||
@@ -65,9 +50,8 @@ cpuid --ext 29 && goto x86_64 || goto i386
 
 :start
 menu Metal Pre-Boot :: ${manufacturer} ${product} (${archb}bit)
-item --gap -- ---------------- Boot Choices ----------------
-item --key d default    (D)efault next (${script-url})
-item --key c change         (C)hange next to ...
+item --gap -- ---------------- Choices       ----------------
+item --key n nics     Print (N)IC information
 item --key r reboot         (R)eboot
 item --key e bios           (E)xit to BIOS Menu
 item
@@ -75,17 +59,16 @@ item --gap -- ---------------- Advanced configuration ----------------
 item --key i config   Configure / View (i)PXE settings
 item --key s shell    Enter iPXE (s)hell
 item
-choose --default default --timeout ${menu-timeout} target || goto cancel ||
-set menu-timeout 0
+choose --default default target || goto cancel ||
 goto ${target}
 
 :bios
 echo Exiting PXE ROM, dropping into BIOS ...
 exit 0
 
-:change
-read script-url
-goto default
+:nics
+set print-nics 1
+goto nic_naming
 
 :config
 config
@@ -100,36 +83,3 @@ goto start
 :cancel
 echo Menu cancelled, dropping to iPXE shell ...
 goto shell
-
-:default
-echo Calling home (server-ip=${server-ip})...
-isset server || goto failed_ping
-set pingidx:int8 1
-:call_home
-  # Only use -c 1, otherwise a successful ping will continue needlessly.
-  # This loop will ensure an unsuccessful ping retries without holding up a successful ping.
-  echo Dumping interface status:
-  isset ${net${vidx}/ip} && show net${vidx}/ip || echo No interfaces were configured
-  ifstat
-  echo show routes:
-  route
-  echo attempt: ${pingidx} of 30
-  ping -c 1 ${server-ip} && goto called_home ||
-  iseq ${pingidx} 30 && goto failed_ping ||
-  iseq ${pingidx} 30 || inc pingidx && goto call_home
-:called_home
-echo Successfully called home; deployment server is reachable
-goto boot
-
-:boot
-echo querying ${script-url}
-chain --autofree --replace ${script-url} || goto failed
-
-:failed_ping
-echo Failed to call home! ${server-ip} was not reachable.
-goto failed
-
-:failed
-echo Exiting iPXE; depending on vendor this will drop to the next PXE interface or to BIOS.
-echo If BIOS appears next, select either of the DISK entries.
-exit 1
