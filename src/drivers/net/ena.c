@@ -34,6 +34,8 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #include <ipxe/iobuf.h>
 #include <ipxe/malloc.h>
 #include <ipxe/pci.h>
+#include <ipxe/pcibridge.h>
+#include <ipxe/version.h>
 #include "ena.h"
 
 /** @file
@@ -345,6 +347,90 @@ static int ena_admin ( struct ena_nic *ena, union ena_aq_req *req,
 	DBGC_HDA ( ena, virt_to_phys ( req ), req, sizeof ( *req ) );
 	DBGC_HDA ( ena, virt_to_phys ( *rsp ), *rsp, sizeof ( **rsp ) );
 	return rc;
+}
+
+/**
+ * Set async event notification queue config
+ *
+ * @v ena		ENA device
+ * @v enabled		Bitmask of the groups to enable
+ * @ret rc		Return status code
+ */
+static int ena_set_aenq_config ( struct ena_nic *ena, uint32_t enabled ) {
+	union ena_aq_req *req;
+	union ena_acq_rsp *rsp;
+	union ena_feature *feature;
+	int rc;
+
+	/* Construct request */
+	req = ena_admin_req ( ena );
+	req->header.opcode = ENA_SET_FEATURE;
+	req->set_feature.id = ENA_AENQ_CONFIG;
+	feature = &req->set_feature.feature;
+	feature->aenq.enabled = cpu_to_le32 ( enabled );
+
+	/* Issue request */
+	if ( ( rc = ena_admin ( ena, req, &rsp ) ) != 0 )
+		return rc;
+
+	return 0;
+}
+
+/**
+ * Create async event notification queue
+ *
+ * @v ena		ENA device
+ * @ret rc		Return status code
+ */
+static int ena_create_async ( struct ena_nic *ena ) {
+	size_t aenq_len = ( ENA_AENQ_COUNT * sizeof ( ena->aenq.evt[0] ) );
+	int rc;
+
+	/* Allocate async event notification queue */
+	ena->aenq.evt = malloc_phys ( aenq_len, aenq_len );
+	if ( ! ena->aenq.evt ) {
+		rc = -ENOMEM;
+		goto err_alloc_aenq;
+	}
+	memset ( ena->aenq.evt, 0, aenq_len );
+
+	/* Program queue address and capabilities */
+	ena_set_base ( ena, ENA_AENQ_BASE, ena->aenq.evt );
+	ena_set_caps ( ena, ENA_AENQ_CAPS, ENA_AENQ_COUNT,
+		       sizeof ( ena->aenq.evt[0] ) );
+
+	DBGC ( ena, "ENA %p AENQ [%08lx,%08lx)\n",
+	       ena, virt_to_phys ( ena->aenq.evt ),
+	       ( virt_to_phys ( ena->aenq.evt ) + aenq_len ) );
+
+	/* Disable all events */
+	if ( ( rc = ena_set_aenq_config ( ena, 0 ) ) != 0 )
+		goto err_set_aenq_config;
+
+	return 0;
+
+ err_set_aenq_config:
+	ena_clear_caps ( ena, ENA_AENQ_CAPS );
+	free_phys ( ena->aenq.evt, aenq_len );
+ err_alloc_aenq:
+	return rc;
+}
+
+/**
+ * Destroy async event notification queue
+ *
+ * @v ena		ENA device
+ */
+static void ena_destroy_async ( struct ena_nic *ena ) {
+	size_t aenq_len = ( ENA_AENQ_COUNT * sizeof ( ena->aenq.evt[0] ) );
+
+	/* Clear queue capabilities */
+	ena_clear_caps ( ena, ENA_AENQ_CAPS );
+	wmb();
+
+	/* Free queue */
+	free_phys ( ena->aenq.evt, aenq_len );
+	DBGC ( ena, "ENA %p AENQ destroyed\n", ena );
 }
 
 /**
@@ -922,6 +1008,45 @@ static struct net_device_operations ena_operations = {
  */
 
 /**
+ * Assign memory BAR
+ *
+ * @v ena		ENA device
+ * @v pci		PCI device
+ * @ret rc		Return status code
+ *
+ * Some BIOSes in AWS EC2 are observed to fail to assign a base
+ * address to the ENA device.  The device is the only device behind
+ * its bridge, and the BIOS does assign a memory window to the bridge.
+ * We therefore place the device at the start of the memory window.
+ */
+static int ena_membase ( struct ena_nic *ena, struct pci_device *pci ) {
+	struct pci_bridge *bridge;
+
+	/* Locate PCI bridge */
+	bridge = pcibridge_find ( pci );
+	if ( ! bridge ) {
+		DBGC ( ena, "ENA %p found no PCI bridge\n", ena );
+		return -ENOTCONN;
+	}
+
+	/* Sanity check */
+	if ( PCI_SLOT ( pci->busdevfn ) || PCI_FUNC ( pci->busdevfn ) ) {
+		DBGC ( ena, "ENA %p at " PCI_FMT " may not be only device "
+		       "on bus\n", ena, PCI_ARGS ( pci ) );
+		return -ENOTSUP;
+	}
+
+	/* Place device at start of memory window */
+	pci_write_config_dword ( pci, PCI_BASE_ADDRESS_0, bridge->membase );
+	pci->membase = bridge->membase;
+	DBGC ( ena, "ENA %p at " PCI_FMT " claiming bridge " PCI_FMT " mem "
+	       "%08x\n", ena, PCI_ARGS ( pci ), PCI_ARGS ( bridge->pci ),
+	       bridge->membase );
+
+	return 0;
+}
+
+/**
  * Probe PCI device
  *
  * @v pci		PCI device
@@ -956,6 +1081,10 @@ static int ena_probe ( struct pci_device *pci ) {
 	/* Fix up PCI device */
 	adjust_pci_device ( pci );
 
+	/* Fix up PCI BAR if left unassigned by BIOS */
+	if ( ( ! pci->membase ) && ( ( rc = ena_membase ( ena, pci ) ) != 0 ) )
+		goto err_membase;
+
 	/* Map registers */
 	ena->regs = pci_ioremap ( pci, pci->membase, ENA_BAR_SIZE );
 	if ( ! ena->regs ) {
@@ -970,6 +1099,14 @@ static int ena_probe ( struct pci_device *pci ) {
 	/* Create admin queues */
 	if ( ( rc = ena_create_admin ( ena ) ) != 0 )
 		goto err_create_admin;
+
+	/* Create async event notification queue */
+	if ( ( rc = ena_create_async ( ena ) ) != 0 )
+		goto err_create_async;
+
+	/* Set host attributes */
+	if ( ( rc = ena_set_host_attributes ( ena ) ) != 0 )
+		goto err_set_host_attributes;
 
 	/* Fetch MAC address */
 	if ( ( rc = ena_get_device_attributes ( netdev ) ) != 0 )
@@ -989,12 +1126,16 @@ static int ena_probe ( struct pci_device *pci ) {
 	unregister_netdev ( netdev );
  err_register_netdev:
  err_get_device_attributes:
+ err_set_host_attributes:
+	ena_destroy_async ( ena );
+ err_create_async:
 	ena_destroy_admin ( ena );
  err_create_admin:
 	ena_reset ( ena );
  err_reset:
 	iounmap ( ena->regs );
  err_ioremap:
+ err_membase:
 	netdev_nullify ( netdev );
 	netdev_put ( netdev );
  err_alloc:
@@ -1012,6 +1153,9 @@ static void ena_remove ( struct pci_device *pci ) {
 
 	/* Unregister network device */
 	unregister_netdev ( netdev );
+
+	/* Destroy async event notification queue */
+	ena_destroy_async ( ena );
 
 	/* Destroy admin queues */
 	ena_destroy_admin ( ena );

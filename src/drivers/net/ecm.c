@@ -126,6 +126,15 @@ int ecm_fetch_mac ( struct usb_function *func,
 		return rc;
 	}
 
+	/* Apply system-specific MAC address as current link-layer
+	 * address, if present.
+	 */
+	if ( ( rc = acpi_mac ( amac ) ) == 0 ) {
+		memcpy ( netdev->ll_addr, amac, ETH_ALEN );
+		DBGC ( usb, "USB %s using system-specific MAC %s\n",
+		       func->name, eth_ntoa ( netdev->ll_addr ) );
+	}
+
 	return 0;
 }
 

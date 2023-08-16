@@ -78,6 +78,7 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #define ERRFILE_dma		       ( ERRFILE_CORE | 0x00260000 )
 #define ERRFILE_cachedhcp	       ( ERRFILE_CORE | 0x00270000 )
 #define ERRFILE_acpimac		       ( ERRFILE_CORE | 0x00280000 )
+#define ERRFILE_efi_strings	       ( ERRFILE_CORE | 0x00290000 )
 
 #define ERRFILE_eisa		     ( ERRFILE_DRIVER | 0x00000000 )
 #define ERRFILE_isa		     ( ERRFILE_DRIVER | 0x00010000 )
@@ -215,6 +216,9 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #define ERRFILE_iphone		     ( ERRFILE_DRIVER | 0x00cf0000 )
 #define ERRFILE_slirp		     ( ERRFILE_DRIVER | 0x00d00000 )
 #define ERRFILE_rdc		     ( ERRFILE_DRIVER | 0x00d10000 )
+#define ERRFILE_ice		     ( ERRFILE_DRIVER | 0x00d20000 )
+#define ERRFILE_ecam		     ( ERRFILE_DRIVER | 0x00d30000 )
+#define ERRFILE_pcibridge	     ( ERRFILE_DRIVER | 0x00d40000 )
 
 #define ERRFILE_aoe			( ERRFILE_NET | 0x00000000 )
 #define ERRFILE_arp			( ERRFILE_NET | 0x00010000 )
@@ -292,6 +296,7 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #define ERRFILE_ntp			( ERRFILE_NET | 0x00490000 )
 #define ERRFILE_httpntlm		( ERRFILE_NET | 0x004a0000 )
 #define ERRFILE_eap			( ERRFILE_NET | 0x004b0000 )
+#define ERRFILE_lldp			( ERRFILE_NET | 0x004c0000 )
 
 #define ERRFILE_image		      ( ERRFILE_IMAGE | 0x00000000 )
 #define ERRFILE_elf		      ( ERRFILE_IMAGE | 0x00010000 )
@@ -396,6 +401,12 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #define ERRFILE_linux_sysfs	      ( ERRFILE_OTHER | 0x00560000 )
 #define ERRFILE_linux_acpi	      ( ERRFILE_OTHER | 0x00570000 )
 #define ERRFILE_dynkeymap	      ( ERRFILE_OTHER | 0x00580000 )
+#define ERRFILE_pci_cmd		      ( ERRFILE_OTHER | 0x00590000 )
+#define ERRFILE_dhe		      ( ERRFILE_OTHER | 0x005a0000 )
+#define ERRFILE_efi_cmdline	      ( ERRFILE_OTHER | 0x005b0000 )
+#define ERRFILE_efi_rng		      ( ERRFILE_OTHER | 0x005c0000 )
+#define ERRFILE_efi_shim	      ( ERRFILE_OTHER | 0x005d0000 )
+#define ERRFILE_efi_settings	      ( ERRFILE_OTHER | 0x005e0000 )
 
 /** @} */
 
