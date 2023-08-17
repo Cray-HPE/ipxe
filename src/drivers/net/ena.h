@@ -31,7 +31,10 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #define ENA_TX_COUNT 16
 
 /** Number of receive queue entries */
-#define ENA_RX_COUNT 16
+#define ENA_RX_COUNT 128
+
+/** Receive queue maximum fill level */
+#define ENA_RX_FILL 16
 
 /** Base address low register offset */
 #define ENA_BASE_LO 0x0
@@ -328,6 +331,14 @@ struct ena_create_cq_req {
 	uint64_t address;
 } __attribute__ (( packed ));
 
+/** Empty MSI-X vector
+ *
+ * Some versions of the ENA firmware will complain if the completion
+ * queue's MSI-X vector field is left empty, even though the queue
+ * configuration specifies that interrupts are not used.
+ */
+#define ENA_MSIX_NONE 0xffffffffUL
+
 /** Create completion queue response */
 struct ena_create_cq_rsp {
 	/** Header */
@@ -386,6 +397,27 @@ struct ena_get_feature_req {
 struct ena_get_feature_rsp {
 	/** Header */
 	struct ena_acq_header header;
+	/** Feature */
+	union ena_feature feature;
+} __attribute__ (( packed ));
+
+/** Set feature */
+#define ENA_SET_FEATURE 9
+
+/** Set feature request */
+struct ena_set_feature_req {
+	/** Header */
+	struct ena_aq_header header;
+	/** Length */
+	uint32_t len;
+	/** Address */
+	uint64_t address;
+	/** Flags */
+	uint8_t flags;
+	/** Feature identifier */
+	uint8_t id;
+	/** Reserved */
+	uint8_t reserved[2];
 	/** Feature */
 	union ena_feature feature;
 } __attribute__ (( packed ));
@@ -450,6 +482,8 @@ union ena_aq_req {
 	struct ena_destroy_cq_req destroy_cq;
 	/** Get feature */
 	struct ena_get_feature_req get_feature;
+	/** Set feature */
+	struct ena_set_feature_req set_feature;
 	/** Get statistics */
 	struct ena_get_stats_req get_stats;
 	/** Padding */
@@ -574,6 +608,9 @@ struct ena_tx_cqe {
 	uint16_t cons;
 } __attribute__ (( packed ));
 
+/** Transmit completion request identifier */
+#define ENA_TX_CQE_ID(id) ( (id) >> 2 )
+
 /** Receive completion queue entry */
 struct ena_rx_cqe {
 	/** Reserved */
@@ -602,6 +639,8 @@ struct ena_sq {
 		/** Raw data */
 		void *raw;
 	} sqe;
+	/** Buffer IDs */
+	uint8_t *ids;
 	/** Doorbell register offset */
 	unsigned int doorbell;
 	/** Total length of entries */
@@ -616,6 +655,10 @@ struct ena_sq {
 	uint8_t direction;
 	/** Number of entries */
 	uint8_t count;
+	/** Maximum fill level */
+	uint8_t max;
+	/** Fill level (limited to completion queue size) */
+	uint8_t fill;
 };
 
 /**
@@ -624,15 +667,19 @@ struct ena_sq {
  * @v sq		Submission queue
  * @v direction		Direction
  * @v count		Number of entries
+ * @v max		Maximum fill level
  * @v size		Size of each entry
+ * @v ids		Buffer IDs
  */
 static inline __attribute__ (( always_inline )) void
 ena_sq_init ( struct ena_sq *sq, unsigned int direction, unsigned int count,
-	      size_t size ) {
+	      unsigned int max, size_t size, uint8_t *ids ) {
 
 	sq->len = ( count * size );
 	sq->direction = direction;
 	sq->count = count;
+	sq->max = max;
+	sq->ids = ids;
 }
 
 /** Completion queue */
@@ -693,6 +740,8 @@ struct ena_qp {
 struct ena_nic {
 	/** Registers */
 	void *regs;
+	/** Host info */
+	struct ena_host_info *info;
 	/** Admin queue */
 	struct ena_aq aq;
 	/** Admin completion queue */
@@ -703,7 +752,13 @@ struct ena_nic {
 	struct ena_qp tx;
 	/** Receive queue */
 	struct ena_qp rx;
-	/** Receive I/O buffers */
+	/** Transmit buffer IDs */
+	uint8_t tx_ids[ENA_TX_COUNT];
+	/** Transmit I/O buffers, indexed by buffer ID */
+	struct io_buffer *tx_iobuf[ENA_TX_COUNT];
+	/** Receive buffer IDs */
+	uint8_t rx_ids[ENA_RX_COUNT];
+	/** Receive I/O buffers, indexed by buffer ID */
 	struct io_buffer *rx_iobuf[ENA_RX_COUNT];
 };
 

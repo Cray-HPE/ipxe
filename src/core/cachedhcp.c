@@ -93,16 +93,20 @@ static void cachedhcp_free ( struct cached_dhcp_packet *cache ) {
  */
 static int cachedhcp_apply ( struct cached_dhcp_packet *cache,
 			     struct net_device *netdev ) {
-	struct settings *settings;
+	struct settings *settings = NULL;
+	struct ll_protocol *ll_protocol;
+	const uint8_t *chaddr;
+	uint8_t *hw_addr;
+	uint8_t *ll_addr;
+	size_t ll_addr_len;
 	int rc;
 
 	/* Do nothing if cache is empty */
 	if ( ! cache->dhcppkt )
 		return 0;
+	chaddr = cache->dhcppkt->dhcphdr->chaddr;
 
-	/* Do nothing unless cached packet's MAC address matches this
-	 * network device, if specified.
-	 */
+	/* Handle association with network device, if specified */
 	if ( netdev ) {
 		hw_addr = netdev->hw_addr;
 		ll_addr = netdev->ll_addr;
@@ -156,9 +160,6 @@ static int cachedhcp_apply ( struct cached_dhcp_packet *cache,
 		DBGC ( colour, "CACHEDHCP %s is for %s\n",
 		       cache->name, netdev->name );
 	}
-
-	/* Select appropriate parent settings block */
-	settings = ( netdev ? netdev_settings ( netdev ) : NULL );
 
 	/* Register settings */
 	if ( ( rc = register_settings ( &cache->dhcppkt->settings, settings,
