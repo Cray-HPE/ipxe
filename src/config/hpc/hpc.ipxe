@@ -1,7 +1,7 @@
 #!ipxe
 
 set print-nics:int8 0
-:nics
+:nics_scan
 echo === NIC DISCOVERY ==================================
 # Must start at 0; uint does not start at 0.
 set idx:int8 0
@@ -68,7 +68,7 @@ exit 0
 
 :nics
 set print-nics 1
-goto nic_naming
+goto nics_scan
 
 :config
 config
