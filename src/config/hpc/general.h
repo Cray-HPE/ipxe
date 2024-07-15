@@ -1,3 +1,6 @@
+/* Enable CERT command: https://ipxe.org/buildcfg/cert_cmd */
+#define CERT_CMD
+
 /* Enable VLAN command: https://ipxe.org/buildcfg/vlan_cmd */
 #define VLAN_CMD
 
