@@ -51,6 +51,9 @@ usage: Used for triaging TCP/IP routing and general connectivity.
 #endif
 #define DHCP_DISC_MAX_DEFERRALS		    180
 
+/* Enable Secure Hypertext Transfer Protocol */
+#define	DOWNLOAD_PROTO_HTTPS
+
 /* No LACP */
 #ifdef NET_PROTO_LACP
 #undef NET_PROTO_LACP
