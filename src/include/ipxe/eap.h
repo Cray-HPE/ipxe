@@ -12,6 +12,7 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #include <stdint.h>
 #include <ipxe/netdevice.h>
 #include <ipxe/timer.h>
+#include <ipxe/tables.h>
 
 /** EAP header */
 struct eap_header {
@@ -26,16 +27,67 @@ struct eap_header {
 /** EAP request */
 #define EAP_CODE_REQUEST 1
 
-/** EAP request */
-struct eap_request {
+/** EAP response */
+#define EAP_CODE_RESPONSE 2
+
+/** EAP request/response message */
+struct eap_message {
 	/** Header */
 	struct eap_header hdr;
 	/** Type */
 	uint8_t type;
+	/** Type data */
+	uint8_t data[0];
 } __attribute__ (( packed ));
+
+/** EAP "no available types" marker */
+#define EAP_TYPE_NONE 0
 
 /** EAP identity */
 #define EAP_TYPE_IDENTITY 1
+
+/** EAP NAK */
+#define EAP_TYPE_NAK 3
+
+/** EAP MD5 challenge request/response */
+#define EAP_TYPE_MD5 4
+
+/** EAP MD5 challenge request/response type data */
+struct eap_md5 {
+	/** Value length */
+	uint8_t len;
+	/** Value */
+	uint8_t value[0];
+} __attribute__ (( packed ));
+
+/** EAP MS-CHAPv2 request/response */
+#define EAP_TYPE_MSCHAPV2 26
+
+/** EAP MS-CHAPv2 request/response type data */
+struct eap_mschapv2 {
+	/** Code
+	 *
+	 * This is in the same namespace as the EAP header's code
+	 * field, but is used to extend the handshake by allowing for
+	 * "success request" and "success response" packets.
+	 */
+	uint8_t code;
+	/** Identifier
+	 *
+	 * This field serves no purposes: it always has the same value
+	 * as the EAP header's identifier field (located 5 bytes
+	 * earlier in the same packet).
+	 */
+	uint8_t id;
+	/** Length
+	 *
+	 * This field serves no purpose: it always has the same value
+	 * as the EAP header's length field (located 5 bytes earlier
+	 * in the same packet), minus the 5 byte length of the EAP
+	 * header.
+	 */
+	uint16_t len;
+} __attribute__ (( packed ));
 
 /** EAP success */
 #define EAP_CODE_SUCCESS 3
@@ -47,8 +99,8 @@ struct eap_request {
 union eap_packet {
 	/** Header */
 	struct eap_header hdr;
-	/** Request */
-	struct eap_request req;
+	/** Request/response message */
+	struct eap_message msg;
 };
 
 /** EAP link block timeout
@@ -87,7 +139,11 @@ struct eap_supplicant {
 	/** Network device */
 	struct net_device *netdev;
 	/** Flags */
-	unsigned int flags;
+	uint16_t flags;
+	/** ID for current request/response */
+	uint8_t id;
+	/** Type for current request/response */
+	uint8_t type;
 	/**
 	 * Transmit EAP response
 	 *
@@ -117,6 +173,30 @@ struct eap_supplicant {
  */
 #define EAP_FL_PASSIVE 0x0002
 
+/** An EAP method */
+struct eap_method {
+	/** Type */
+	uint8_t type;
+	/**
+	 * Handle EAP request
+	 *
+	 * @v supplicant	EAP supplicant
+	 * @v req		Request type data
+	 * @v req_len		Length of request type data
+	 * @ret rc		Return status code
+	 */
+	int ( * rx ) ( struct eap_supplicant *supplicant,
+		       const void *req, size_t req_len );
+};
+
+/** EAP method table */
+#define EAP_METHODS __table ( struct eap_method, "eap_methods" )
+
+/** Declare an EAP method */
+#define __eap_method __table_entry ( EAP_METHODS, 01 )
+
+extern int eap_tx_response ( struct eap_supplicant *supplicant,
+			     const void *rsp, size_t rsp_len );
 extern int eap_rx ( struct eap_supplicant *supplicant,
 		    const void *data, size_t len );
 

@@ -92,6 +92,13 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #define	CRYPTO_80211_WPA2	/* Add support for stronger WPA cryptography */
 
 /*
+ * 802.1x EAP authentication methods
+ *
+ */
+#define EAP_METHOD_MD5		/* MD5-Challenge port authentication */
+//#define EAP_METHOD_MSCHAPV2	/* MS-CHAPv2 port authentication */
+
+/*
  * Name resolution modules
  *
  */
@@ -120,6 +127,7 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #define	IMAGE_PEM		/* PEM image support */
 //#define	IMAGE_ZLIB		/* ZLIB image support */
 //#define	IMAGE_GZIP		/* GZIP image support */
+//#define	IMAGE_UCODE		/* Microcode update image support */
 
 /*
  * Command-line commands to include
@@ -137,6 +145,7 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 #define DHCP_CMD		/* DHCP management commands */
 #define SANBOOT_CMD		/* SAN boot commands */
 #define MENU_CMD		/* Menu commands */
+#define FORM_CMD		/* Form commands */
 #define LOGIN_CMD		/* Login command */
 #define SYNC_CMD		/* Sync command */
 #define SHELL_CMD		/* Shell command */

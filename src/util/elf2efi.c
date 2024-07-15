@@ -122,6 +122,9 @@
 #ifndef R_AARCH64_LDST64_ABS_LO12_NC
 #define R_AARCH64_LDST64_ABS_LO12_NC 286
 #endif
+#ifndef R_AARCH64_LDST128_ABS_LO12_NC
+#define R_AARCH64_LDST128_ABS_LO12_NC 299
+#endif
 #ifndef R_ARM_CALL
 #define R_ARM_CALL 28
 #endif
@@ -137,6 +140,12 @@
 #ifndef R_LARCH_64
 #define R_LARCH_64 2
 #endif
+#ifndef R_LARCH_B16
+#define R_LARCH_B16 64
+#endif
+#ifndef R_LARCH_B21
+#define R_LARCH_B21 65
+#endif
 #ifndef R_LARCH_B26
 #define R_LARCH_B26 66
 #endif
@@ -151,6 +160,18 @@
 #endif
 #ifndef R_LARCH_GOT_PC_LO12
 #define R_LARCH_GOT_PC_LO12 76
+#endif
+#ifndef R_LARCH_RELAX
+#define R_LARCH_RELAX 100
+#endif
+#ifndef R_LARCH_PCREL20_S2
+#define R_LARCH_PCREL20_S2 103
+#endif
+#ifndef R_X86_64_GOTPCRELX
+#define R_X86_64_GOTPCRELX 41
+#endif
+#ifndef R_X86_64_REX_GOTPCRELX
+#define R_X86_64_REX_GOTPCRELX 42
 #endif
 
 /**
@@ -440,8 +461,8 @@ static void read_elf_file ( const char *name, struct elf_file *elf ) {
 
 	/* Check program headers */
 	if ( ( elf->len < ehdr->e_phoff ) ||
-	     ( ( elf->len - ehdr->e_phoff ) < ( ehdr->e_phnum *
-						ehdr->e_phentsize ) ) ) {
+	     ( ( elf->len - ehdr->e_phoff ) <
+	       ( ( ( unsigned int ) ehdr->e_phnum ) * ehdr->e_phentsize ) ) ) {
 		eprintf ( "ELF program headers outside file in %s\n", name );
 		exit ( 1 );
 	}
@@ -828,6 +849,8 @@ static void process_reloc ( struct elf_file *elf, const Elf_Shdr *shdr,
 		case ELF_MREL ( EM_ARM, R_ARM_V4BX ):
 		case ELF_MREL ( EM_X86_64, R_X86_64_PC32 ) :
 		case ELF_MREL ( EM_X86_64, R_X86_64_PLT32 ) :
+		case ELF_MREL ( EM_X86_64, R_X86_64_GOTPCRELX ) :
+		case ELF_MREL ( EM_X86_64, R_X86_64_REX_GOTPCRELX ) :
 		case ELF_MREL ( EM_AARCH64, R_AARCH64_CALL26 ) :
 		case ELF_MREL ( EM_AARCH64, R_AARCH64_JUMP26 ) :
 		case ELF_MREL ( EM_AARCH64, R_AARCH64_ADR_PREL_LO21 ) :
@@ -837,14 +860,23 @@ static void process_reloc ( struct elf_file *elf, const Elf_Shdr *shdr,
 		case ELF_MREL ( EM_AARCH64, R_AARCH64_LDST16_ABS_LO12_NC ) :
 		case ELF_MREL ( EM_AARCH64, R_AARCH64_LDST32_ABS_LO12_NC ) :
 		case ELF_MREL ( EM_AARCH64, R_AARCH64_LDST64_ABS_LO12_NC ) :
+		case ELF_MREL ( EM_AARCH64, R_AARCH64_LDST128_ABS_LO12_NC ) :
+		case ELF_MREL ( EM_LOONGARCH, R_LARCH_B16):
+		case ELF_MREL ( EM_LOONGARCH, R_LARCH_B21):
 		case ELF_MREL ( EM_LOONGARCH, R_LARCH_B26):
 		case ELF_MREL ( EM_LOONGARCH, R_LARCH_PCALA_HI20 ):
 		case ELF_MREL ( EM_LOONGARCH, R_LARCH_PCALA_LO12 ):
 		case ELF_MREL ( EM_LOONGARCH, R_LARCH_GOT_PC_HI20 ):
 		case ELF_MREL ( EM_LOONGARCH, R_LARCH_GOT_PC_LO12 ):
+		case ELF_MREL ( EM_LOONGARCH, R_LARCH_PCREL20_S2 ):
 			/* Skip PC-relative relocations; all relative
 			 * offsets remain unaltered when the object is
 			 * loaded.
+			 */
+			break;
+		case ELF_MREL ( EM_LOONGARCH, R_LARCH_RELAX ):
+			/* Relocation can be relaxed (optimized out).
+			 * Ignore it for now.
 			 */
 			break;
 		case ELF_MREL ( EM_X86_64, R_X86_64_32 ) :

@@ -188,6 +188,9 @@ REQUIRE_OBJECT ( zlib );
 #ifdef IMAGE_GZIP
 REQUIRE_OBJECT ( gzip );
 #endif
+#ifdef IMAGE_UCODE
+REQUIRE_OBJECT ( ucode );
+#endif
 
 /*
  * Drag in all requested commands
@@ -222,7 +225,10 @@ REQUIRE_OBJECT ( dhcp_cmd );
 REQUIRE_OBJECT ( sanboot_cmd );
 #endif
 #ifdef MENU_CMD
-REQUIRE_OBJECT ( menu_cmd );
+REQUIRE_OBJECT ( dynui_cmd );
+#endif
+#ifdef FORM_CMD
+REQUIRE_OBJECT ( dynui_cmd );
 #endif
 #ifdef LOGIN_CMD
 REQUIRE_OBJECT ( login_cmd );
