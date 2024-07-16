@@ -706,6 +706,17 @@ privkey_DEPS += $(PRIVKEY_LIST)
 
 CFLAGS_privkey += $(if $(PRIVKEY),-DPRIVATE_KEY="\"$(PRIVKEY_INC)\"")
 
+# Bearer Tokens
+#
+ifdef BEARER_TOKEN
+CFLAGS += $(if $(BEARER_TOKEN),-DHTTP_AUTH_BEARER -DHTTP_AUTH_BEARER_TOKEN="\"$(BEARER_TOKEN)\"")
+endif
+
+# S3
+ifdef S3_HOST
+CFLAGS += -DS3_HOST=\"$(S3_HOST)\"
+endif
+
 # (Single-element) list of named configurations
 #
 CONFIG_LIST := $(BIN)/.config.list
@@ -1063,7 +1074,7 @@ CLEANUP		+= $(BIN)/NIC	# Doesn't match the $(BIN)/*.* pattern
 
 # Analyse a target name (e.g. "bin/dfe538--prism2_pci.rom.tmp") and
 # derive the variables:
-# 
+#
 # TGT_ELEMENTS : the elements of the target (e.g. "dfe538 prism2_pci")
 # TGT_PREFIX   : the prefix type (e.g. "pcirom")
 # TGT_DRIVERS  : the driver for each element (e.g. "rtl8139 prism2_pci")
@@ -1322,7 +1333,7 @@ $(BIN)/%.zbin : $(BIN)/%.bin $(BIN)/%.zinfo $(ZBIN)
 # Rules for each media format.  These are generated and placed in an
 # external Makefile fragment.  We could do this via $(eval ...), but
 # that would require make >= 3.80.
-# 
+#
 # Note that there's an alternative way to generate most .rom images:
 # they can be copied from their 'master' ROM image using cp and
 # reprocessed with makerom to add the PCI IDs and ident string.  The
@@ -1331,10 +1342,10 @@ $(BIN)/%.zbin : $(BIN)/%.bin $(BIN)/%.zinfo $(ZBIN)
 #   $(BIN)/dfe538%rom : $(BIN)/rtl8139%rom
 #	cat $< $@
 #	$(FINALISE_rom)
-# 
+#
 # You can derive the ROM/driver relationships using the variables
 # DRIVER_<rom> and/or ROMS_<driver>.
-# 
+#
 # We don't currently do this, because (a) it would require generating
 # yet more Makefile fragments (since you need a rule for each ROM in
 # ROMS), and (b) the linker is so fast that it probably wouldn't make

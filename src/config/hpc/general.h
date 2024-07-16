@@ -1,3 +1,6 @@
+/* Enable CERT command: https://ipxe.org/buildcfg/cert_cmd */
+#define CERT_CMD
+
 /* Enable VLAN command: https://ipxe.org/buildcfg/vlan_cmd */
 #define VLAN_CMD
 
@@ -43,6 +46,13 @@ usage: Used for triaging TCP/IP routing and general connectivity.
 #undef DHCP_DISC_END_TIMEOUT_SEC
 #endif
 #define DHCP_DISC_END_TIMEOUT_SEC	    32
+#ifdef DHCP_DISC_MAX_DEFERRALS
+#undef DHCP_DISC_MAX_DEFERRALS
+#endif
+#define DHCP_DISC_MAX_DEFERRALS		    180
+
+/* Enable Secure Hypertext Transfer Protocol */
+#define	DOWNLOAD_PROTO_HTTPS
 
 /* No LACP */
 #ifdef NET_PROTO_LACP
