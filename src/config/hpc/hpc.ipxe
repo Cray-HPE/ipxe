@@ -104,6 +104,10 @@ goto nics_scan
 :change
 read script-url
 goto boot
+
+:reboot
+reboot
+
 :config
 config
 goto start
