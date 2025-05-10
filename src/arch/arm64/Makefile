@@ -8,7 +8,7 @@ SRCDIRS		+= arch/arm64/core
 
 # ARM64-specific flags
 #
-CFLAGS		+= -mlittle-endian -mcmodel=small
+CFLAGS		+= -mcmodel=small
 CFLAGS		+= -fomit-frame-pointer
 ASFLAGS		+= -mabi=lp64 -EL
 
